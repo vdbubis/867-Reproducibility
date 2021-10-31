@@ -61,7 +61,7 @@ def encoder(input_shapes,
                    data_format="channels_last",
                    name="dilated_encoder"):
 
-    # input channel size | if use darknet53 and the backbone ,the input is 1024 channels | if use resnet50 as the backbone, the input is 2048 channels
+    # input channel size | if use darknet53 as the backbone ,the input is 1024 channels | if use resnet50 as the backbone, the input is 2048 channels
     inputs = kl.Input(shape=input_shapes)
 
 
