@@ -12,6 +12,8 @@ class Decoder(tf.keras.Model):
                  kernel_init=tf.keras.initializers.RandomNormal(mean=0.0, stddev=0.01, seed=None),
                  prior_prob=0.5): #0.5 is effectively a zeros initialization.
         
+        super().__init__()
+        
         self.cls_layers = cls_layers #Value used in paper is 2
         self.reg_layers = reg_layers #Value used in paper is 4
         self.activation = activation #For now, this is implicitly fixed as 'relu'
