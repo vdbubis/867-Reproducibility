@@ -6,6 +6,7 @@ class Decoder(tf.keras.Model):
     def __init__(self,
                  num_classes,
                  num_anchors,
+                 decoder_channels=512,
                  cls_layers=2,
                  reg_layers=4,
                  activation='relu',
@@ -21,6 +22,7 @@ class Decoder(tf.keras.Model):
         
         self.num_classes = num_classes
         self.num_anchors = num_anchors
+        self.decoder_channels = decoder_channels
         
         self.prior_prob = prior_prob
         
@@ -34,13 +36,13 @@ class Decoder(tf.keras.Model):
         self.reg_subnet = tf.keras.Sequential()
         
         for i in range(self.cls_layers):
-            self.cls_subnet.add(layers.Conv2D(512,(3, 3), strides=1, padding="same",
+            self.cls_subnet.add(layers.Conv2D(self.decoder_channels,(3, 3), strides=1, padding="same",
                                               kernel_initializer=self.kernel_init))
             self.cls_subnet.add(layers.BatchNormalization()) #Default initializations for this already match the paper's code
             self.cls_subnet.add(layers.Activation(self.activation))
             
         for i in range(self.reg_layers):
-            self.reg_subnet.add(layers.Conv2D(512,(3, 3), strides=1, padding="same", kernel_initializer=self.kernel_init))
+            self.reg_subnet.add(layers.Conv2D(self.decoder_channels,(3, 3), strides=1, padding="same", kernel_initializer=self.kernel_init))
             self.reg_subnet.add(layers.BatchNormalization())
             self.reg_subnet.add(layers.Activation(self.activation))
             
@@ -56,21 +58,21 @@ class Decoder(tf.keras.Model):
         
     def call(self, inputs, training=False): #This is the forward pass
         cls_score = self.cls_score(self.cls_subnet(inputs))
-        N, _, H, W = cls_score.shape
-        cls_score = tf.reshape(cls_score, [N, -1, self.num_classes, H, W])
+        N, H, W, _ = cls_score.shape
+        cls_score = tf.reshape(cls_score, [N, H, W, -1, self.num_classes])
         
-        reg_feat = self.bbox_subnet(inputs) #We are effectively saving this activation to input twice
+        reg_feat = self.reg_subnet(inputs) #We are effectively saving this activation to input twice
         bbox_reg = self.bbox_pred(reg_feat)
         objectness = self.object_pred(reg_feat)
         
-        #Objectness multiplication
-        objectness = tf.reshape(objectness, [N, -1, 1, H, W])
+        #Objectness for multiplication
+        objectness = tf.reshape(objectness, [N, H, W, -1, 1])
         
         #This is a softmax with guards against exp overflows
         normalized_cls_score = cls_score + objectness - tf.math.log(
-            1. + tf.clip_by_value(tf.math.exp(cls_score), max=self.INF) + tf.clip_by_value(
-                tf.math.exp(objectness), max=self.INF))
+            1. + tf.clip_by_value(tf.math.exp(cls_score), clip_value_min=0, clip_value_max=self.INF) + tf.clip_by_value(
+                tf.math.exp(objectness), clip_value_min=0, clip_value_max=self.INF))
         
-        normalized_cls_score = tf.reshape(normalized_cls_score, [N, -1, H, W])
+        normalized_cls_score = tf.reshape(normalized_cls_score, [N, H, W, -1])
         
         return normalized_cls_score, bbox_reg
