@@ -41,39 +41,7 @@ class YOLOFBox2BoxTransform(object):
         self.ctr_clamp = ctr_clamp
         
     def get_deltas(self, src_boxes, target_boxes):
-        """
-        Get box regression transformation deltas (dx, dy, dw, dh) that can be
-        used to transform the `src_boxes` into the `target_boxes`. That is,
-        the relation ``target_boxes == self.apply_deltas(deltas,
-        src_boxes)`` is true (unless any delta is too large and is clamped).
-        Args:
-            src_boxes (Tensor): source boxes, e.g., object proposals
-            target_boxes (Tensor): target of the transformation, e.g.,
-                ground-truth boxes.
-        """
-        assert isinstance(src_boxes, tf.Tensor), type(src_boxes)
-        assert isinstance(target_boxes, tf.Tensor), type(target_boxes)
-
-        src_widths = src_boxes[..., 2] - src_boxes[..., 0] #Subtracting corner x coordinates
-        src_heights = src_boxes[..., 3] - src_boxes[..., 1] #Subtracting corner y coordinates
-        src_ctr_x = src_boxes[..., 0] + 0.5 * src_widths #Getting center point x
-        src_ctr_y = src_boxes[..., 1] + 0.5 * src_heights #Getting center point y
-
-        target_widths = target_boxes[..., 2] - target_boxes[..., 0] #We repeat all the above for targets
-        target_heights = target_boxes[..., 3] - target_boxes[..., 1]
-        target_ctr_x = target_boxes[..., 0] + 0.5 * target_widths
-        target_ctr_y = target_boxes[..., 1] + 0.5 * target_heights
-
-        wx, wy, ww, wh = self.weights
-        dx = wx * (target_ctr_x - src_ctr_x) / src_widths
-        dy = wy * (target_ctr_y - src_ctr_y) / src_heights
-        dw = ww * tf.math.log(target_widths / src_widths)
-        dh = wh * tf.math.log(target_heights / src_heights)
-
-        deltas = tf.stack((dx, dy, dw, dh))
-        assert (src_widths > 0).all().item(), \
-            "Input boxes to Box2BoxTransform are not valid!"
-        return deltas
+        pass #This is a dummy function; it's not needed anywhere in the implementation, so we've left it for now.
     
     def apply_deltas(self, deltas, boxes):
         deltas = tf.cast(deltas, 'float32') #Ensure fp32 for compatability
@@ -92,11 +60,11 @@ class YOLOFBox2BoxTransform(object):
         deltas = deltas / variance
         
         #Next we briefly split our tensors so we can apply separate clamps and update rules
-        ctr_deltas = deltas[..., 0:1]
-        dim_deltas = deltas[..., 2:3]
+        ctr_deltas = deltas[..., :2]
+        dim_deltas = deltas[..., 2:]
         
-        ctr_boxes = boxes[..., 0:1]
-        dim_boxes = boxes[..., 2:3]
+        ctr_boxes = boxes[..., :2]
+        dim_boxes = boxes[..., 2:]
         
         ctr_deltas = ctr_deltas * dim_boxes #Adjust according to size of box
         if self.add_ctr_clamp:
