@@ -33,8 +33,7 @@ class UniformMatcher(tf.keras.Model):
         anchors = tf.reshape(anchors, [-1, 4]) #Shape is (NWHA, 4)
         
         #Let K** be the sum of K* for each image
-        tgt_bbox = tf.stack(targets) #This is a (K**, 4) tensor
-        
+        tgt_bbox = tf.concat(targets, axis=0) #This is a (K**, 4) tensor
         
         #These are L1-norm costs
         C_pred = cost_matrix(out_bbox, tgt_bbox)
