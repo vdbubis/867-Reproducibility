@@ -76,49 +76,38 @@ class YOLOFBox2BoxTransform(object):
         return deltas
     
     def apply_deltas(self, deltas, boxes):
-        """
-        Apply transformation `deltas` (dx, dy, dw, dh) to `boxes`.
-        Args:
-            deltas (Tensor): transformation deltas of shape (N, k*4),
-                where k >= 1. deltas[i] represents k potentially different
-                class-specific box transformations for the single box boxes[i].
-            boxes (Tensor): boxes to transform, of shape (N, 4)
-        """
-        deltas = deltas.float()  # ensure fp32 for decoding precision
-        boxes = tf.dtypes.cast(boxes, deltas.dtype)
+        deltas = tf.cast(deltas, 'float32') #Ensure fp32 for compatability
+        boxes = tf.cast(boxes, deltas.dtype) #Match type
 
-        widths = boxes[..., 2] - boxes[..., 0]
-        heights = boxes[..., 3] - boxes[..., 1]
-        ctr_x = boxes[..., 0] + 0.5 * widths
-        ctr_y = boxes[..., 1] + 0.5 * heights
+        #deltas are in format (N, WHA, 4)
+        #boxes are in format (N, WHA, 4)
+        #both are already in xywh
 
-        wx, wy, ww, wh = self.weights
-        dx = deltas[..., 0::4] / wx
-        dy = deltas[..., 1::4] / wy
-        dw = deltas[..., 2::4] / ww
-        dh = deltas[..., 3::4] / wh
-
-        # Prevent sending too large values into exp by using clip_by_value (substitute for clamp)
-        dx_width = dx * widths[..., None]
-        dy_height = dy * heights[..., None]
+        variance = tf.convert_to_tensor(self.weights)
+        variance = variance[None, None, ...] #Expand dimensions for broadcastability with (N, WHA, 4)
+        
+        #center deltas are proportions of the original anchor dimensions (to apply to the center)
+        #dimension deltas are logarithmic units for multiplying the original anchor dimensions
+        
+        deltas = deltas / variance
+        
+        #Next we briefly split our tensors so we can apply separate clamps and update rules
+        ctr_deltas = deltas[..., 0:1]
+        dim_deltas = deltas[..., 2:3]
+        
+        ctr_boxes = boxes[..., 0:1]
+        dim_boxes = boxes[..., 2:3]
+        
+        ctr_deltas = ctr_deltas * dim_boxes #Adjust according to size of box
         if self.add_ctr_clamp:
-            dx_width = tf.clip_by_value(dx_width,
-                                   clip_value_max=self.ctr_clamp,
-                                   clip_value_min=-self.ctr_clamp)
-            dy_height = tf.clip_by_value(dy_height,
-                                    clip_value_max=self.ctr_clamp,
-                                    clip_value_min=-self.ctr_clamp)
-        dw = tf.clip_by_value(dw, clip_value_max=self.scale_clamp)
-        dh = tf.clip_by_value(dh, clip_value_max=self.scale_clamp)
+            ctr_deltas = tf.clip_by_value(ctr_deltas, clip_value_min= -self.ctr_clamp, clip_value_max= self.ctr_clamp)
+        
+        #clipping the dimensions deltas is necessary to prevent exp overflow, so it is not optional
+        dim_deltas = tf.clip_by_value(dim_deltas, clip_value_min= -self.scale_clamp, clip_value_max= self.scale_clamp)
 
-        pred_ctr_x = dx_width + ctr_x[..., None]
-        pred_ctr_y = dy_height + ctr_y[..., None]
-        pred_w = tf.math.exp(dw) * widths[..., None]
-        pred_h = tf.math.exp(dh) * heights[..., None]
+        ctr_pred = ctr_boxes + ctr_deltas
+        dim_pred = dim_boxes * tf.math.exp(dim_deltas)
+        
+        pred_boxes = tf.concat([ctr_pred, dim_pred], axis=2) #Reunite into (N, WHA, 4)
 
-        x1 = pred_ctr_x - 0.5 * pred_w
-        y1 = pred_ctr_y - 0.5 * pred_h
-        x2 = pred_ctr_x + 0.5 * pred_w
-        y2 = pred_ctr_y + 0.5 * pred_h
-        pred_boxes = tf.stack((x1, y1, x2, y2))
-        return pred_boxes.reshape(deltas.shape)
+        return pred_boxes
