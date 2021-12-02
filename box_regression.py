@@ -53,6 +53,7 @@ class YOLOFBox2BoxTransform(object):
 
         variance = tf.convert_to_tensor(self.weights)
         variance = variance[None, None, ...] #Expand dimensions for broadcastability with (N, WHA, 4)
+        variance = tf.cast(variance, deltas.dtype)
         
         #center deltas are proportions of the original anchor dimensions (to apply to the center)
         #dimension deltas are logarithmic units for multiplying the original anchor dimensions

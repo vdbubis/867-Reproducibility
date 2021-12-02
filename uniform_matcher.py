@@ -37,7 +37,7 @@ class UniformMatcher(tf.keras.Model):
         
         #These are L1-norm costs
         C_pred = cost_matrix(out_bbox, tgt_bbox)
-        C_anchors = abs_norm(anchors, tgt_bbox)
+        C_anchors = cost_matrix(anchors, tgt_bbox)
         #Cost matrix returns a (K**, WHA) tensor
         
         #Reshape to sweep costs
@@ -47,7 +47,7 @@ class UniformMatcher(tf.keras.Model):
         
         C_anchors = tf.reshape(C_anchors, [-1, bs, num_queries]) #Separate NWHA into N and WHA
         C_anchors = tf.transpose(C_anchors, [1, 0, 2]) #Move N to front to iterate over batch
-        C_anchors = -C_pred #We invert this so top k gives us the least elements instead of greatest
+        C_anchors = -C_anchors #We invert this so top k gives us the least elements instead of greatest
         
         num_boxes = [image_boxes.shape[0] for image_boxes in targets] #This gets us K* for each image
         
@@ -60,30 +60,35 @@ class UniformMatcher(tf.keras.Model):
         # positive indices when matching predict boxes and gt boxes
         indices_pred = [
             tuple( #Note that C[i] is (K*, WHA)
-                tf.math.top_k(C_pred[i], k=self.match_times).indices.numpy().tolist() #Convert the top k to list representation
-            )
+                tf.transpose(tf.math.top_k(c[i], k=self.match_times).indices).numpy().tolist() #Convert the top k to list representation
+            ) #Each of these lists following transposition should be [match_times, K*]
             for i, c in enumerate(tf.split(C_pred, num_boxes, 1)) #We split along K** for K* in c, and i is over N
         ]
         
         # positive indices when matching anchor boxes and gt boxes
         indices_anchors = [
             tuple( #Note that C[i] is (K*, WHA)
-                tf.math.top_k(C_anchors[i], k=self.match_times).indices.numpy().tolist() #Convert the top k to list representation
+                tf.transpose(tf.math.top_k(c[i], k=self.match_times).indices).numpy().tolist() #Convert the top k to list representation
             )
             for i, c in enumerate(tf.split(C_anchors, num_boxes, 1)) #We split along K** for K* in c, and i is over N
         ]
+        
+        # Two lists each of shape (N, K*, match_times)
         
         #Concatenate indices according to image ids
         for img_id, (idx_pred, idx_anchor) in enumerate(zip(indices_pred, indices_anchors)):
             img_idx_i = [
                 np.array(idx_pred_sub + idx_anchor_sub) #We concatenate the actual lists of indices
                 for (idx_pred_sub, idx_anchor_sub) in zip(idx_pred, idx_anchor)
-            ]
+            ] #img_idx_i is [K*, 2x match_times]
             img_idx_j = [
                 np.array(list(range(len(idx_pred_sub))) + list(range(len(idx_anchor_sub)))) #Sequential lists according to size of above lists
                 for (idx_pred_sub, idx_anchor_sub) in zip(idx_pred, idx_anchor)
-            ]
+            ] #img_idx_j is [K*, 2x match_times]
+            
             all_indices_list[img_id] = [*zip(img_idx_i, img_idx_j)] #Value of top index, and index value according to origin
+        
+        #all_indices_list shape is [N, K*, 2, 2x match_times]
         
         # re-organize the positive indices; that is to say, to organize them by image id
         all_indices = []
@@ -94,15 +99,19 @@ class UniformMatcher(tf.keras.Model):
                 idx_i, idx_j = idx_list
                 all_idx_i.append(idx_i)
                 all_idx_j.append(idx_j)
+            
+            #At this step, all_idx_i and j are (N, )
+            
             all_idx_i = np.hstack(all_idx_i)
             all_idx_j = np.hstack(all_idx_j)
             all_indices.append((all_idx_i, all_idx_j))
+            
+        #all_indices shape is [N, 2, K*x2x match_times]
             
         #Our final format is: for every image (in order of entry), we have a tuple of all the top indices for predictions and anchors
         #As well as the sequential indices representing each bounding box within that image.
             
         return [
-            (tf.convert_to_tensor(i, dtype=tf.int64),
-             tf.convert_to_tensor(j, dtype=tf.int64))
+            tf.transpose(tf.stack((tf.convert_to_tensor(i, dtype=tf.int64), tf.convert_to_tensor(j, dtype=tf.int64)))) #For each image, we have a (2 x K* x match_times, 2) tensor of source and target pairs
             for i, j in all_indices
         ]
