@@ -50,30 +50,19 @@ class YolofLoss (tf.keras.losses.Loss):
         
         #Next, we unpack the prediction tensors from y_pred, which is a 2-tuple
         
-        pred_logits, pred_anchor_deltas = y_pred
+        pred_logits, pred_boxes = y_pred
         
         N = pred_logits.shape[0]
         
         #pred_logits is in (N, W, H, AK)
-        #pred_anchor_deltas is in (N, W, H, 4A)
-        
-        anchors = self.anchors
-        
-        #Anchors in (W, H, A, 4)
-        
-        #Our first step is to reshape so that we're comparing boxes on N, WHA, 4 instead
-        
-        anchors = tf.reshape(anchors, [1, -1, 4])
-        anchors = tf.tile(anchors, [N, 1, 1]) #tile for each image in batch
+        #pred_boxes is in (N, W, H, 4A)
         
         pred_logits = tf.reshape(pred_logits, [-1, self.num_classes]) # [NWHA, K] shape
-        pred_anchor_deltas = tf.reshape(pred_anchor_deltas, [N, -1, 4]) #Need this shape to easier assign deltas and match indices
+        pred_boxes = tf.reshape(pred_boxes, [N, -1, 4]) #Reshape for uniform matching
         
-        #Next we apply deltas to the anchors
-        
-        pred_boxes = self.box2box_transform.apply_deltas(pred_anchor_deltas, anchors)
-        
-        #Pred boxes are of shape (N, WHA, 4) and format xywh
+        anchors = self.anchors
+        anchors = tf.reshape(anchors, [1, -1, 4])
+        anchors = tf.tile(anchors, [N, 1, 1]) #tile for each image in batch
         
         indices = self.anchor_matcher(pred_boxes, anchors, bbox_true)
         
