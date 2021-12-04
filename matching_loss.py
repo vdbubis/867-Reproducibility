@@ -16,6 +16,7 @@ class YolofLoss (tf.keras.losses.Loss):
                  neg_ignore_thresh=0.7,
                  focal_loss_alpha=0.25,
                  focal_loss_gamma=2.0,
+                 box2box_transform=YOLOFBox2BoxTransform(weights=(1, 1, 1, 1))
                 ):
         super().__init__()
         
@@ -24,7 +25,7 @@ class YolofLoss (tf.keras.losses.Loss):
         
         self.num_classes = num_classes
         
-        self.box2box_transform = YOLOFBox2BoxTransform(weights=(1, 1, 1, 1))
+        self.box2box_transform = box2box_transform
         
         # Ignore thresholds:
         self.pos_ignore_thresh = pos_ignore_thresh
@@ -33,7 +34,7 @@ class YolofLoss (tf.keras.losses.Loss):
         self.focal_loss_alpha = focal_loss_alpha
         self.focal_loss_gamma = focal_loss_gamma
         
-        self.focal_loss = SigmoidFocalCrossEntropy(alpha=focal_loss_alpha, gamma=focal_loss_gamma)
+        self.focal_loss = SigmoidFocalCrossEntropy(alpha=focal_loss_alpha, gamma=focal_loss_gamma) #Currently no alternative to this
         
     def call(self, y_true, y_pred):
         #y_true is a list of 2-tuples of tensors of varying lengths K*, the number of objects on an image
