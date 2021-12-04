@@ -92,17 +92,19 @@ class YOLOF(tf.keras.Model):
         
         return pred_logits, pred_boxes
     
-    def inference(self, inputs, pred_logits, pred_boxes):
-        results = [] #We want to output a tensor, for each image, a set of class ids, confidence scores, and bounding boxes
-        N = inputs.shape[0]
-        for i in range(N):
-            pred_logits_per_image = [x[img_idx] for x in pred_logits]
-            boxes_per_image = [x[img_idx] for x in pred_boxes]
-            results_per_image = self.inference_single_image(
-                anchors, pred_logits_per_image, boxes_per_image
-            ) #We don't need anchors. Do we need the inputs at this point?
-            results.append(results_per_image)
-        return results
+    #We've dummied out the inference, as it's a moot point if we can't train
+    
+    #def inference(self, inputs, pred_logits, pred_boxes):
+    #    results = [] #We want to output a tensor, for each image, a set of class ids, confidence scores, and bounding boxes
+    #    N = inputs.shape[0]
+    #    for i in range(N):
+    #        pred_logits_per_image = [x[img_idx] for x in pred_logits]
+    #        boxes_per_image = [x[img_idx] for x in pred_boxes]
+    #        results_per_image = self.inference_single_image(
+    #            anchors, pred_logits_per_image, boxes_per_image
+    #        ) #We don't need anchors. Do we need the inputs at this point?
+    #        results.append(results_per_image)
+    #    return results
     
     def preprocess_image(self, sample):
         #Applies to a single image
