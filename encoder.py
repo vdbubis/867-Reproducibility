@@ -50,6 +50,7 @@ class DilatedEncoder(tf.keras.Model):
         
         return x
     
+#This is the repeated residual block, which we make a separate class in order to easier include repeated residual skips.
 class Bottleneck(tf.keras.Model):
     def __init__(self,
                  encoder_channels,

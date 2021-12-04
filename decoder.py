@@ -29,7 +29,6 @@ class Decoder(tf.keras.Model):
         self.INF = 1e8 #Maximum value
         
         self._init_layers()
-        #self._init_weights() #TF includes the ini
         
     def _init_layers(self):
         self.cls_subnet = tf.keras.Sequential() #These two subnets are parallel; objectness multiplication follows their outputs
@@ -68,7 +67,7 @@ class Decoder(tf.keras.Model):
         #Objectness for multiplication with pred logits
         objectness = tf.reshape(objectness, [N, W, H, -1, 1])
         
-        #This is a softmax with guards against exp overflows
+        #This is a softmax with guards against exp overflows (deltas are logarithmic)
         normalized_cls_score = cls_score + objectness - tf.math.log(
             1. + tf.clip_by_value(tf.math.exp(cls_score), clip_value_min=0, clip_value_max=self.INF) + tf.clip_by_value(
                 tf.math.exp(objectness), clip_value_min=0, clip_value_max=self.INF))
