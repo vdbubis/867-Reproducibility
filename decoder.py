@@ -32,7 +32,7 @@ class Decoder(tf.keras.Model):
         #self._init_weights() #TF includes the ini
         
     def _init_layers(self):
-        self.cls_subnet = tf.keras.Sequential()
+        self.cls_subnet = tf.keras.Sequential() #These two subnets are parallel; objectness multiplication follows their outputs
         self.reg_subnet = tf.keras.Sequential()
         
         for i in range(self.cls_layers):
@@ -46,7 +46,7 @@ class Decoder(tf.keras.Model):
             self.reg_subnet.add(layers.BatchNormalization())
             self.reg_subnet.add(layers.Activation(self.activation))
             
-        bias_value = -math.log((1 - self.prior_prob) / self.prior_prob)
+        bias_value = -math.log((1 - self.prior_prob) / self.prior_prob) #This bias value is only used for classification
             
         self.cls_score = layers.Conv2D(self.num_anchors * self.num_classes,(3, 3), strides=1, padding="same",
                                        kernel_initializer=self.kernel_init,
@@ -58,21 +58,21 @@ class Decoder(tf.keras.Model):
         
     def call(self, inputs, training=False): #This is the forward pass
         cls_score = self.cls_score(self.cls_subnet(inputs))
-        N, H, W, _ = cls_score.shape
-        cls_score = tf.reshape(cls_score, [N, H, W, -1, self.num_classes])
+        N, W, H, _ = cls_score.shape
+        cls_score = tf.reshape(cls_score, [N, W, H, -1, self.num_classes])
         
         reg_feat = self.reg_subnet(inputs) #We are effectively saving this activation to input twice
         bbox_reg = self.bbox_pred(reg_feat)
         objectness = self.object_pred(reg_feat)
         
-        #Objectness for multiplication
-        objectness = tf.reshape(objectness, [N, H, W, -1, 1])
+        #Objectness for multiplication with pred logits
+        objectness = tf.reshape(objectness, [N, W, H, -1, 1])
         
         #This is a softmax with guards against exp overflows
         normalized_cls_score = cls_score + objectness - tf.math.log(
             1. + tf.clip_by_value(tf.math.exp(cls_score), clip_value_min=0, clip_value_max=self.INF) + tf.clip_by_value(
                 tf.math.exp(objectness), clip_value_min=0, clip_value_max=self.INF))
         
-        normalized_cls_score = tf.reshape(normalized_cls_score, [N, H, W, -1])
+        normalized_cls_score = tf.reshape(normalized_cls_score, [N, W, H, -1])
         
         return normalized_cls_score, bbox_reg

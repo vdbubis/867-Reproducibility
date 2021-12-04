@@ -83,10 +83,10 @@ class Bottleneck(tf.keras.Model):
         self.endconv.add(layers.Activation(activation))
         
     def call(self, inputs, training=False):
-        identity = inputs
+        identity = inputs #Save input for resiidual block skip connection
         x = self.startconv(inputs)
         x = self.midconv(x)
         x = self.endconv(x)
-        x = layers.Add()([x, identity])
+        x = layers.Add()([x, identity]) #Close residual block skip connection
         
         return x
