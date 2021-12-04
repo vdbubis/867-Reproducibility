@@ -1,6 +1,5 @@
 import tensorflow as tf
 
-from box_regression import YOLOFBox2BoxTransform
 from uniform_matcher import UniformMatcher
 
 from retinanet_utility import compute_iou, convert_to_corners
@@ -15,8 +14,7 @@ class YolofLoss (tf.keras.losses.Loss):
                  pos_ignore_thresh=0.15,
                  neg_ignore_thresh=0.7,
                  focal_loss_alpha=0.25,
-                 focal_loss_gamma=2.0,
-                 box2box_transform=YOLOFBox2BoxTransform(weights=(1, 1, 1, 1))
+                 focal_loss_gamma=2.0
                 ):
         super().__init__()
         
@@ -24,8 +22,6 @@ class YolofLoss (tf.keras.losses.Loss):
         self.anchor_matcher = anchor_matcher
         
         self.num_classes = num_classes
-        
-        self.box2box_transform = box2box_transform
         
         # Ignore thresholds:
         self.pos_ignore_thresh = pos_ignore_thresh
