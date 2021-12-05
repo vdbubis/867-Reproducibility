@@ -27,15 +27,15 @@ Note that Tensorflow Addons and Tensorflow Datasets must be installed separately
 
 ### Architectural Details
 
-[Figure 9 from Chen et al](/figures/model.png)
+![Figure 9 from Chen et al](/figures/model.png)
 
 The above is Figure 9 from the original paper. The layout of our network is identical, with modifications to tensor format, bounding box format, and with predicted boxes returned rather than box deltas.
 
-Wherever a tensor in the original implementation is of the form [N, \_, H, W], our implementation instead uses tensors of form [N, W, H, \_]. Feature outputs from network layers in Tensorflow will default to the last dimension, where they remain through all reshapings and broadcasts. In the case of W and H, we have their order match the format of our bounding boxes, which are in xywh format for most of the process.  We convert boxes to xywh format as part of our preprocessing, and in the existing implementation, it is only necessary to convert to the ocrner xyxy format for TFA's implementation of GIoU loss. Additionally, our bounding boxes are expressed in pixel units, and not percentages of their respective images.
+Wherever a tensor in the original implementation is of the form [N, \_, H, W], our implementation instead uses tensors of form [N, W, H, \_]. Feature outputs from network layers in Tensorflow will default to the last dimension, where they remain through all reshapings and broadcasts. In the case of W and H, we have their order match the format of our bounding boxes, which are in xywh format for most of the process.  We convert boxes to xywh format as part of our preprocessing, and in the existing implementation, it is only necessary to convert to the corner xyxy format for TFA's implementation of GIoU loss. Additionally, our bounding boxes are expressed in pixel units, and not percentages of their respective images. Note that the data pipeline from the retinanet demo initially loads bounding boxes in corners yxyx format.
 
 We have moved the delta application out of the loss function and into the model itself, so that our model is returning box predictions rather than the deltas. This also means that the only thing dependent on box_reg.py is the YOLOF model class itself. Additionally, we do not flatten our anchors tensor when applying deltas or matching; this is to reduce the need to slice for specific coordinates.
 
-[Figure 4 from our report](/figures/YOLOF_training.png)
+![Figure 4 from our report](/figures/YOLOF_training.png)
 
 This figure from our report illustrates the training process. Note that we have created a simple anchor generator, which is called both for generating predicted boxes, and for matching anchors in uniform matching. Given the structure of the original paper and the design of the uniform matcher, it is impossible to separate it from the training process.
 
