@@ -123,9 +123,9 @@ class YolofLoss (tf.keras.losses.Loss):
         foreground_idxs = tf.reduce_sum(tf.one_hot(src_idx[~pos_ignore_idx], pred_logits.shape[0]), axis=0) #Get matched locations booleans as integers
         foreground_idxs = foreground_idxs > 0 #Convert to bool form, also implicitly drop duplicates
         
-        background_labels = tf.cast(foreground_idxs, 'int32')
-        background_labels = background_labels * -1 + 1 #Invert for background location booleans as integers
-        background_labels = background_labels * self.num_classes #Apply background class
+        #background_labels = tf.cast(foreground_idxs, 'int32')
+        #background_labels = background_labels * -1 + 1 #Invert for background location booleans as integers
+        #background_labels = background_labels * self.num_classes #Apply background class
         
         target_classes_o = []
         for i in range(N):
