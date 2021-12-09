@@ -44,3 +44,5 @@ At this time, there is no support for config files; the model can only be initia
 ### Future Work
 
 At present, we have no plans to continue work on this repository. In order for this implementation to be completed, an inference function must be implemented for the model that is compatible with COCOEvals (which are available in the tensorflow models repository: https://github.com/tensorflow/models/tree/master/official/vision/detection/evaluation). Following this, the uniform matching method would have to be made functional within Tensorflow through a custom training loop, or have its use of prediction tensors abandoned entirely, in which case, it would be moved to preprocessing as the label encoding step (and in such a case, would no longer be the method used by Chen et Al). The step following this would be to add support for configs and checkpoints, as well as modularity for the matching method (which is currently impractical due to the matching being part of training), as well as the box regression and presence of the encoder (for the purpose of ablation study).
+
+This repository is licensed under the GNU Public License.
